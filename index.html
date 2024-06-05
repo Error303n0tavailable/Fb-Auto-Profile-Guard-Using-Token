@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Guard - Facebook Token Checker and Profile Guard Manager</title>
+    <meta name="description" content="A web application to check Facebook tokens and manage profile guard settings. Secure your Facebook profile with ease.">
+    <meta property="og:title" content="Profile Guard - Facebook Token Checker and Profile Guard Manager">
+    <meta property="og:description" content="A web application to check Facebook tokens and manage profile guard settings. Secure your Facebook profile with ease.">
+    <meta property="og:image" content="8fc967d9-42f0-4f1a-a480-a5adc2c723d3.jpg">
+    <meta property="og:url" content="https:www.profileguard-by-polongdev.onrender.com">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: white;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #ddd;
+        }
+
+        .progress-bar-fill {
+            height: 24px;
+            width: 0;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 24px;
+            color: white;
+        }
+
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 2px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+            font-size: 17px;
+            white-space: nowrap;
+        }
+
+        .toast-success {
+            background-color: #4caf50;
+        }
+
+        .toast-error {
+            background-color: #f44336;
+        }
+
+        .toast #desc {
+            padding: 16px;
+        }
+
+        .show {
+            visibility: visible !important;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 10px;
+            }
+
+            .modal-content {
+                margin: 20% auto;
+                width: 90%;
+            }
+        }
+
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .info-table th, .info-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        .info-table th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            text-align: left;
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .bubble-button {
+            background: linear-gradient(135deg, #ffcc33, #ff66cc);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .bubble-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .bubble-input {
+            background: linear-gradient(135deg, #ffcc33, #ff66cc);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+            width: 100%;
+            outline: none;
+            border: none;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .bubble-input::placeholder {
+            color: white;
+            opacity: 0.7;
+        }
+
+        .bubble-input:focus {
+            transform: scale(1.02);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <div id="time" class="text-lg font-semibold"></div>
+            <div id="ping" class="text-lg font-semibold"></div>
+        </div>
+        <h1 class="text-3xl font-bold mb-4 text-center">Profile Guard</h1>
+        <p class="text-center mb-6">Check your Facebook token and manage your profile guard settings easily and securely.</p>
+        <div id="mainContent">
+            <div class="mb-4">
+                <label for="token" class="block mb-2">Facebook Token:</label>
+                <input type="text" id="token" class="bubble-input" placeholder="Enter your Facebook token">
+            </div>
+            <div class="flex justify-center mb-4">
+                <button id="checkToken" class="bubble-button">Check Token</button>
+            </div>
+        </div>
+        <div id="userInfo" class="mt-4 hidden text-center">
+            <img id="userAvatar" class="avatar" src="" alt="User Avatar">
+            <table class="info-table">
+                <tr>
+                    <th>Name</th>
+                    <td id="userName"></td>
+                </tr>
+                <tr>
+                    <th>Email</th>
+                    <td id="userEmail"></td>
+                </tr>
+                <tr>
+                    <th>User ID</th>
+                    <td id="userId"></td>
+                </tr>
+                <tr>
+                    <th>Birthday</th>
+                    <td id="userBirthday"></td>
+                </tr>
+                <tr>
+                    <th>Location</th>
+                    <td id="userLocation"></td>
+                </tr>
+            </table>
+            <div class="flex justify-center space-x-4">
+                <button id="turnOnShield" class="bubble-button">Turn On Profile Guard</button>
+                <button id="turnOffShield" class="bubble-button">Turn Off Profile Guard</button>
+            </div>
+            <div class="flex justify-center mt-8">
+                <button id="backToMain" class="bubble-button">Back to Main Page</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeLoadingModal">&times;</span>
+            <p>Loading...</p>
+            <div class="progress-bar">
+                <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeErrorModal">&times;</span>
+            <p id="errorMessage">An error occurred</p>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <div id="desc"></div>
+    </div>
+
+    <script>
+        const loadingModal = document.getElementById('loadingModal');
+        const errorModal = document.getElementById('errorModal');
+        const errorMessage = document.getElementById('errorMessage');
+        const closeLoadingModal = document.getElementById('closeLoadingModal');
+        const closeErrorModal = document.getElementById('closeErrorModal');
+        const toast = document.getElementById('toast');
+        const desc = document.getElementById('desc');
+        const mainContent = document.getElementById('mainContent');
+        const userInfo = document.getElementById('userInfo');
+
+        closeLoadingModal.onclick = function() {
+            loadingModal.style.display = "none";
+        };
+
+        closeErrorModal.onclick = function() {
+            errorModal.style.display = "none";
+        };
+
+        window.onclick = function(event) {
+            if (event.target === loadingModal) {
+                loadingModal.style.display = "none";
+            } else if (event.target === errorModal) {
+                errorModal.style.display = "none";
+            }
+        };
+
+        function showToast(message, type) {
+            desc.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => {
+                toast.className = toast.className.replace("show", "");
+            }, 3000);
+        }
+
+        function updateProgressBar() {
+            const progressBarFill = document.getElementById('progressBarFill');
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                } else {
+                    width++;
+                    progressBarFill.style.width = width + '%';
+                }
+            }, 30);
+        }
+
+        document.getElementById('checkToken').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            try {
+                loadingModal.style.display = 'block';
+                updateProgressBar();
+                const response = await axios.post('/api/checkToken', { token });
+                loadingModal.style.display = 'none';
+                const userData = response.data;
+                if (userData.error) {
+                    throw new Error(userData.error);
+                }
+                mainContent.style.display = 'none';
+                userInfo.classList.remove('hidden');
+                document.getElementById('userAvatar').src = userData.picture.data.url;
+                document.getElementById('userName').textContent = userData.name;
+                document.getElementById('userEmail').textContent = userData.email;
+                document.getElementById('userId').textContent = userData.id;
+                document.getElementById('userBirthday').textContent = userData.birthday || 'N/A';
+                document.getElementById('userLocation').textContent = userData.location?.name || 'N/A';
+                document.getElementById('turnOnShield').dataset.userId = userData.id;
+                document.getElementById('turnOffShield').dataset.userId = userData.id;
+                showToast('Token verified successfully', 'toast-success');
+            } catch (error) {
+                loadingModal.style.display = 'none';
+                errorMessage.textContent = 'Failed to check token';
+                errorModal.style.display = 'block';
+                showToast('Failed to check token', 'toast-error');
+            }
+        });
+
+        document.getElementById('turnOnShield').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            const userId = document.getElementById('turnOnShield').dataset.userId;
+            try {
+                loadingModal.style.display = 'block';
+                updateProgressBar();
+                const response = await axios.post('/api/turnOnShield', { token, id: userId });
+                loadingModal.style.display = 'none';
+                showToast('Profile guard turned on', 'toast-success');
+            } catch (error) {
+                loadingModal.style.display = 'none';
+                errorMessage.textContent = 'Failed to turn on profile guard';
+                errorModal.style.display = 'block';
+                showToast('Failed to turn on profile guard', 'toast-error');
+            }
+        });
+
+        document.getElementById('turnOffShield').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            const userId = document.getElementById('turnOffShield').dataset.userId;
+            try {
+                loadingModal.style.display = 'block';
+                updateProgressBar();
+                const response = await axios.post('/api/turnOffShield', { token, id: userId });
+                loadingModal.style.display = 'none';
+                showToast('Profile guard turned off', 'toast-success');
+            } catch (error) {
+                loadingModal.style.display = 'none';
+                errorMessage.textContent = 'Failed to turn off profile guard';
+                errorModal.style.display = 'block';
+                showToast('Failed to turn off profile guard', 'toast-error');
+            }
+        });
+
+        document.getElementById('backToMain').addEventListener('click', () => {
+            window.location.href = 'https://mainprofile-by-polongdev.vercel.app/';
+        });
+
+        function measurePing() {
+            var xhr = new XMLHttpRequest();
+            var startTime, endTime;
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    endTime = Date.now();
+                    var pingTime = endTime - startTime;
+                    document.getElementById("ping").textContent = pingTime + " ms";
+                }
+            };
+            xhr.open("GET", location.href + "?t=" + new Date().getTime());
+            startTime = Date.now();
+            xhr.send();
+        }
+        setInterval(measurePing, 1000);
+
+        function updateTime() {
+            const now = new Date();
+            const options = {
+                timeZone: 'Asia/Manila',
+                hour12: true,
+                hour: 'numeric',
+                minute: 'numeric',
+                second: 'numeric'
+            };
+            const formattedTime = now.toLocaleString('en-US', options);
+            document.getElementById('time').textContent = formattedTime;
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
